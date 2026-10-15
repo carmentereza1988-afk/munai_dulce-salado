@@ -62,9 +62,14 @@
 
     <script>
         const socket = io({
-            transports: ['websocket', 'polling']
-        });
+        transports: ['websocket', 'polling']
+    });
 
+    // 🚀 CONSULTA AUTOMÁTICA CADA 2 SEGUNDOS
+    setInterval(() => {
+        socket.emit('obtener_pedidos');
+    }, 2000);
+      
         // Al conectar, pedir pedidos previos
         socket.on('connect', () => {
             console.log("Conectado al servidor de WebSocket");
