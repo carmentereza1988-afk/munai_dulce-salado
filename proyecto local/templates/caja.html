@@ -70,7 +70,9 @@
     </div>
 
     <script>
-        const socket = io();
+      const socket = io({
+    transports: ['websocket', 'polling']
+});
 
         // Pedir los pedidos existentes al conectar
         socket.emit('obtener_pedidos');
