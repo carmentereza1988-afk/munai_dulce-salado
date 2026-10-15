@@ -233,13 +233,23 @@
             const precio = parseFloat(prompt("Precio total en $:", "3.00")) || 3.00;
 
             const datosPedido = {
-                cliente: nombre + " (Presencial/Caja)",
-                mesa: mesa,
-                productos: [{ nombre: prod, precio: precio }],
-                total: precio
-            };
+    cliente: nombre + " (Presencial/Caja)",
+    mesa: mesa,
+    productos: [{ nombre: prod, precio: precio }],
+    total: precio,
+    estado: 'Pendiente'
+};
 
-            socket.emit('nuevo_pedido', datosPedido);
+fetch('/api/pedidos', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(datosPedido)
+})
+.then(res => res.json())
+.then(res => {
+    alert("¡Pedido enviado con éxito a cocina!");
+})
+.catch(err => alert("Error al enviar el pedido. Intenta nuevamente."));
         }
 
         socket.on('recibir_pedido', function(pedido) {
