@@ -16,8 +16,13 @@ def index():
 def handle_nuevo_pedido(data):
     nuevo_id = len(pedidos) + 1
     data['id'] = nuevo_id
-    data['estado'] = 'Pendiente'
+    if 'estado' not in data or not data['estado']:
+        data['estado'] = 'Pendiente'
+    
     pedidos.append(data)
+    
+    # Emitimos el pedido individual Y la lista completa para que llegue al instante por cualquier vía
+    emit('recibir_pedido', data, broadcast=True)
     emit('actualizar_lista', pedidos, broadcast=True)
 
 @socketio.on('cambiar_estado')
