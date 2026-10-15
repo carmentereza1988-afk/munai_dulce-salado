@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Munai - Panel de Caja y Cocina</title>
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -12,10 +11,7 @@
             margin: 0;
             padding: 20px;
         }
-        h1 {
-            color: #333;
-            text-align: center;
-        }
+        h1 { color: #333; text-align: center; }
         .grid-pedidos {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -61,84 +57,66 @@
     </div>
 
     <script>
-       const socket = io({
-    transports: ['polling']
-    });
-
-    // 🚀 CONSULTA AUTOMÁTICA CADA 2 SEGUNDOS
-    setInterval(() => {
-        socket.emit('obtener_pedidos');
-    }, 2000);
-      
-        // Al conectar, pedir pedidos previos
-        socket.on('connect', () => {
-            console.log("Conectado al servidor de WebSocket");
-            socket.emit('obtener_pedidos');
-        });
-
-        // Función para renderizar un pedido en pantalla
-        function renderizarTarjeta(data) {
-            const contenedor = document.getElementById('grid-pedidos');
-            const mensajeVacio = document.getElementById('mensaje-vacio');
-            if (mensajeVacio) mensajeVacio.remove();
-
-            // Si la tarjeta ya existe en la pantalla, la actualizamos
-            let tarjetaExistente = document.getElementById(`pedido-${data.id}`);
-            if (tarjetaExistente) {
-                tarjetaExistente.querySelector('.estado').innerText = data.estado;
-                tarjetaExistente.className = `tarjeta-pedido ${(data.estado || 'pendiente').toLowerCase().replace(' ', '-')}`;
-                return;
-            }
-
-            // Crear nueva tarjeta
-            const tarjeta = document.createElement('div');
-            tarjeta.className = `tarjeta-pedido ${(data.estado || 'pendiente').toLowerCase().replace(' ', '-')}`;
-            tarjeta.id = `pedido-${data.id}`;
-
-            let listaProd = '';
-            if (Array.isArray(data.productos)) {
-                listaProd = data.productos.map(p => typeof p === 'object' ? `${p.nombre || 'Producto'}` : p).join(', ');
-            } else {
-                listaProd = data.productos || 'Detalles del pedido';
-            }
-
-            tarjeta.innerHTML = `
-                <div class="header-pedido">
-                    <span class="id-pedido">Pedido #${data.id}</span>
-                    <span class="estado">${data.estado || 'Pendiente'}</span>
-                </div>
-                <div class="detalles">
-                    <p><strong>Cliente:</strong> ${data.cliente || data.nombre || 'Cliente'}</p>
-                    <p><strong>Mesa/Lugar:</strong> ${data.mesa || 'N/A'}</p>
-                    <p><strong>Productos:</strong> ${listaProd}</p>
-                    <p><strong>Total:</strong> $${parseFloat(data.total || 0).toFixed(2)}</p>
-                </div>
-                <div class="botones">
-                    <button class="btn-preparar" onclick="cambiarEstado(${data.id}, 'Preparando')">En Preparación</button>
-                    <button class="btn-listo" onclick="cambiarEstado(${data.id}, 'Listo')">Listo</button>
-                </div>
-            `;
-            contenedor.prepend(tarjeta);
-        }
-
-        // Escuchar pedido individual en tiempo real
-        socket.on('recibir_pedido', function(pedido) {
-            renderizarTarjeta(pedido);
-        });
-
-        // Escuchar lista completa de sincronización
-        socket.on('actualizar_lista', function(pedidos) {
+        function renderizarLista(pedidos) {
             const contenedor = document.getElementById('grid-pedidos');
             if (!pedidos || pedidos.length === 0) {
                 contenedor.innerHTML = '<p id="mensaje-vacio">Esperando pedidos nuevos...</p>';
                 return;
             }
-            pedidos.forEach(p => renderizarTarjeta(p));
-        });
+
+            contenedor.innerHTML = '';
+
+            pedidos.forEach(data => {
+                const tarjeta = document.createElement('div');
+                tarjeta.className = `tarjeta-pedido ${(data.estado || 'pendiente').toLowerCase().replace(' ', '-')}`;
+                tarjeta.id = `pedido-${data.id}`;
+
+                let listaProd = '';
+                if (Array.isArray(data.productos)) {
+                    listaProd = data.productos.map(p => typeof p === 'object' ? `${p.nombre || 'Producto'}` : p).join(', ');
+                } else {
+                    listaProd = data.productos || 'Detalles del pedido';
+                }
+
+                tarjeta.innerHTML = `
+                    <div class="header-pedido">
+                        <span class="id-pedido">Pedido #${data.id}</span>
+                        <span class="estado">${data.estado || 'Pendiente'}</span>
+                    </div>
+                    <div class="detalles">
+                        <p><strong>Cliente:</strong> ${data.cliente || data.nombre || 'Cliente'}</p>
+                        <p><strong>Mesa/Lugar:</strong> ${data.mesa || 'N/A'}</p>
+                        <p><strong>Productos:</strong> ${listaProd}</p>
+                        <p><strong>Total:</strong> $${parseFloat(data.total || 0).toFixed(2)}</p>
+                    </div>
+                    <div class="botones">
+                        <button class="btn-preparar" onclick="cambiarEstado(${data.id}, 'Preparando')">En Preparación</button>
+                        <button class="btn-listo" onclick="cambiarEstado(${data.id}, 'Listo')">Listo</button>
+                    </div>
+                `;
+                contenedor.appendChild(tarjeta);
+            });
+        }
+
+        function cargarPedidosAPI() {
+            fetch('/api/pedidos')
+                .then(res => res.json())
+                .then(data => renderizarLista(data))
+                .catch(err => console.log("Sincronizando..."));
+        }
 
         function cambiarEstado(id, nuevoEstado) {
-            socket.emit('cambiar_estado', { id: id, estado: nuevoEstado });
+            fetch('/api/pedidos/estado', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: id, estado: nuevoEstado })
+            })
+            .then(() => cargarPedidosAPI());
         }
+
+        // Consultar cada 2 segundos
+        cargarPedidosAPI();
+        setInterval(cargarPedidosAPI, 2000);
     </script>
 </body>
 </html>
