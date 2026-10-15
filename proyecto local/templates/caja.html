@@ -29,25 +29,16 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             border-left: 6px solid #e74c3c;
         }
-        .tarjeta-pedido.preparando {
-            border-left-color: #f39c12;
-        }
-        .tarjeta-pedido.listo {
-            border-left-color: #2ecc71;
-        }
+        .tarjeta-pedido.preparando { border-left-color: #f39c12; }
+        .tarjeta-pedido.listo { border-left-color: #2ecc71; }
         .header-pedido {
             display: flex;
             justify-content: space-between;
             font-weight: bold;
             margin-bottom: 10px;
         }
-        .detalles {
-            margin-bottom: 15px;
-        }
-        .botones {
-            display: flex;
-            gap: 10px;
-        }
+        .detalles { margin-bottom: 15px; }
+        .botones { display: flex; gap: 10px; }
         button {
             flex: 1;
             padding: 8px;
@@ -66,50 +57,78 @@
     <h1>🛒 Panel de Comandas - Munai Dulce & Salado</h1>
     
     <div id="grid-pedidos" class="grid-pedidos">
-        <p>Esperando pedidos nuevos...</p>
+        <p id="mensaje-vacio">Esperando pedidos nuevos...</p>
     </div>
 
     <script>
-      const socket = io({
-    transports: ['websocket', 'polling']
-});
+        const socket = io({
+            transports: ['websocket', 'polling']
+        });
 
-        // Pedir los pedidos existentes al conectar
-        socket.emit('obtener_pedidos');
+        // Al conectar, pedir pedidos previos
+        socket.on('connect', () => {
+            console.log("Conectado al servidor de WebSocket");
+            socket.emit('obtener_pedidos');
+        });
 
-        // Escuchar cuando el servidor actualice la lista de pedidos
-        socket.on('actualizar_lista', function(pedidos) {
+        // Función para renderizar un pedido en pantalla
+        function renderizarTarjeta(data) {
             const contenedor = document.getElementById('grid-pedidos');
-            contenedor.innerHTML = ''; 
+            const mensajeVacio = document.getElementById('mensaje-vacio');
+            if (mensajeVacio) mensajeVacio.remove();
 
-            if (!pedidos || pedidos.length === 0) {
-                contenedor.innerHTML = '<p>Esperando pedidos nuevos...</p>';
+            // Si la tarjeta ya existe en la pantalla, la actualizamos
+            let tarjetaExistente = document.getElementById(`pedido-${data.id}`);
+            if (tarjetaExistente) {
+                tarjetaExistente.querySelector('.estado').innerText = data.estado;
+                tarjetaExistente.className = `tarjeta-pedido ${(data.estado || 'pendiente').toLowerCase().replace(' ', '-')}`;
                 return;
             }
 
-            // Dibujamos cada pedido en la pantalla
-            pedidos.forEach(data => {
-                const tarjeta = document.createElement('div');
-                tarjeta.className = `tarjeta-pedido ${(data.estado || 'pendiente').toLowerCase()}`;
-                tarjeta.id = `pedido-${data.id}`;
+            // Crear nueva tarjeta
+            const tarjeta = document.createElement('div');
+            tarjeta.className = `tarjeta-pedido ${(data.estado || 'pendiente').toLowerCase().replace(' ', '-')}`;
+            tarjeta.id = `pedido-${data.id}`;
 
-                tarjeta.innerHTML = `
-                    <div class="header-pedido">
-                        <span class="id-pedido">Pedido #${data.id}</span>
-                        <span class="estado">${data.estado}</span>
-                    </div>
-                    <div class="detalles">
-                        <p><strong>Cliente:</strong> ${data.cliente || 'Cliente'}</p>
-                        <p><strong>Productos:</strong> ${data.productos || 'Detalles del pedido'}</p>
-                        <p><strong>Total:</strong> $${data.total || '0.00'}</p>
-                    </div>
-                    <div class="botones">
-                        <button class="btn-preparar" onclick="cambiarEstado(${data.id}, 'Preparando')">En Preparación</button>
-                        <button class="btn-listo" onclick="cambiarEstado(${data.id}, 'Listo')">Listo</button>
-                    </div>
-                `;
-                contenedor.prepend(tarjeta);
-            });
+            let listaProd = '';
+            if (Array.isArray(data.productos)) {
+                listaProd = data.productos.map(p => typeof p === 'object' ? `${p.nombre || 'Producto'}` : p).join(', ');
+            } else {
+                listaProd = data.productos || 'Detalles del pedido';
+            }
+
+            tarjeta.innerHTML = `
+                <div class="header-pedido">
+                    <span class="id-pedido">Pedido #${data.id}</span>
+                    <span class="estado">${data.estado || 'Pendiente'}</span>
+                </div>
+                <div class="detalles">
+                    <p><strong>Cliente:</strong> ${data.cliente || data.nombre || 'Cliente'}</p>
+                    <p><strong>Mesa/Lugar:</strong> ${data.mesa || 'N/A'}</p>
+                    <p><strong>Productos:</strong> ${listaProd}</p>
+                    <p><strong>Total:</strong> $${parseFloat(data.total || 0).toFixed(2)}</p>
+                </div>
+                <div class="botones">
+                    <button class="btn-preparar" onclick="cambiarEstado(${data.id}, 'Preparando')">En Preparación</button>
+                    <button class="btn-listo" onclick="cambiarEstado(${data.id}, 'Listo')">Listo</button>
+                </div>
+            `;
+            contenedor.prepend(tarjeta);
+        }
+
+        // Escuchar pedido individual en tiempo real
+        socket.on('recibir_pedido', function(pedido) {
+            renderizarTarjeta(pedido);
+        });
+
+        // Escuchar lista completa de sincronización
+        socket.on('actualizar_lista', function(pedidos) {
+            const contenedor = document.getElementById('grid-pedidos');
+            if (!pedidos || pedidos.length === 0) {
+                contenedor.innerHTML = '<p id="mensaje-vacio">Esperando pedidos nuevos...</p>';
+                return;
+            }
+            pedidos.forEach(p => renderizarTarjeta(p));
         });
 
         function cambiarEstado(id, nuevoEstado) {
