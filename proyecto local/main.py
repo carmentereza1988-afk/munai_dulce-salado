@@ -2,9 +2,9 @@ import os
 from flask import Flask, render_template, jsonify, request
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'mi_local_secreto_123'
+app.config['SECRET_KEY'] = 'munai_secreto_2026'
 
-# Memoria de pedidos
+# Lista en memoria para los pedidos
 pedidos = []
 
 @app.route('/')
@@ -15,14 +15,14 @@ def index():
 def caja():
     return render_template('caja.html')
 
-# Endpoint API para consultar pedidos desde la caja
+# API GET: La caja lee los pedidos aquí
 @app.route('/api/pedidos', methods=['GET'])
-def api_obtener_pedidos():
+def obtener_pedidos():
     return jsonify(pedidos)
 
-# Endpoint API para recibir pedidos nuevos desde el menú del cliente
+# API POST: El cliente o la caja envían un pedido nuevo aquí
 @app.route('/api/pedidos', methods=['POST'])
-def api_nuevo_pedido():
+def guardar_pedido():
     data = request.get_json()
     if not data:
         return jsonify({'status': 'error', 'message': 'Sin datos'}), 400
@@ -35,9 +35,9 @@ def api_nuevo_pedido():
     pedidos.append(data)
     return jsonify({'status': 'ok', 'pedido': data})
 
-# Endpoint API para actualizar el estado del pedido (Pendiente -> Preparando -> Listo)
+# API POST: Cambiar estado (Pendiente -> Preparando -> Listo)
 @app.route('/api/pedidos/estado', methods=['POST'])
-def api_cambiar_estado():
+def cambiar_estado():
     data = request.get_json()
     if not data:
         return jsonify({'status': 'error'}), 400
