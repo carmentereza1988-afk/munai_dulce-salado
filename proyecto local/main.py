@@ -1,4 +1,4 @@
-import os 
+import os
 from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
 
@@ -18,7 +18,7 @@ def handle_nuevo_pedido(data):
     data['id'] = nuevo_id
     data['estado'] = 'Pendiente'
     pedidos.append(data)
-    emit('recibir_pedido', data, broadcast=True)
+    emit('actualizar_lista', pedidos, broadcast=True)
 
 @socketio.on('cambiar_estado')
 def handle_cambiar_estado(data):
@@ -31,9 +31,15 @@ def handle_cambiar_estado(data):
             break
 
     emit('actualizar_lista', pedidos, broadcast=True)
+
+@socketio.on('obtener_pedidos')
+def handle_obtener_pedidos():
+    emit('actualizar_lista', pedidos)
+
 @app.route('/caja')
 def caja():
     return render_template('caja.html')
+
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     print(f"🚀 Servidor corriendo en puerto {port}")
