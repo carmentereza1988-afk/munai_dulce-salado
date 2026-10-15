@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Munai - Panel de Caja y Cocina</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .grid-pedidos {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .tarjeta-pedido {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-left: 6px solid #e74c3c;
+        }
+        .tarjeta-pedido.preparando {
+            border-left-color: #f39c12;
+        }
+        .tarjeta-pedido.listo {
+            border-left-color: #2ecc71;
+            opacity: 0.7;
+        }
+        .header-pedido {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .id-pedido {
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+        .estado {
+            padding: 4px 8px;
+            border-radius: 5px;
+            font-size: 0.85em;
+            font-weight: bold;
+            color: white;
+            background: #e74c3c;
+        }
+        .preparando .estado { background: #f39c12; }
+        .listo .estado { background: #2ecc71; }
+        .detalles {
+            margin: 15px 0;
+        }
+        .botones {
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            color: white;
+        }
+        .btn-preparar { background: #f39c12; }
+        .btn-listo { background: #2ecc71; }
+    </style>
+</head>
+<body>
+
+    <h1>🛒 Panel de Comandas - Munai Dulce & Salado</h1>
+    
+    <div id="contenedor-pedidos" class="grid-pedidos">
+        <p id="sin-pedidos" style="text-align: center; grid-column: 1/-1; color: #777;">Esperando pedidos nuevos...</p>
+    </div>
+
+    <script>
+        const socket = io();
+
+        socket.on('recibir_pedido', function(data) {
+            const sinPedidos = document.getElementById('sin-pedidos');
+            if (sinPedidos) sinPedidos.remove();
+
+            const contenedor = document.getElementById('contenedor-pedidos');
+            
+            const tarjeta = document.createElement('div');
+            tarjeta.className = `tarjeta-pedido ${data.estado.toLowerCase()}`;
+            tarjeta.id = `pedido-${data.id}`;
+
+            tarjeta.innerHTML = `
+                <div class="header-pedido">
+                    <span class="id-pedido">Pedido #${data.id}</span>
+                    <span class="estado">${data.estado}</span>
+                </div>
+                <div class="detalles">
+                    <p><strong>Cliente:</strong> ${data.cliente || 'Cliente'}</p>
+                    <p><strong>Productos:</strong> ${data.productos || 'Detalles del pedido'}</p>
+                    <p><strong>Total:</strong> $${data.total || '0.00'}</p>
+                </div>
+                <div class="botones">
+                    <button class="btn-preparar" onclick="cambiarEstado(${data.id}, 'Preparando')">En Preparación</button>
+                    <button class="btn-listo" onclick="cambiarEstado(${data.id}, 'Listo')">Listo</button>
+                </div>
+            `;
+
+            contenedor.prepend(tarjeta);
+        });
+
+        function cambiarEstado(id, nuevoEstado) {
+            socket.emit('cambiar_estado', { id: id, estado: nuevoEstado });
+        }
+
+        socket.on('actualizar_lista', function(pedidos) {
+            location.reload();
+        });
+    </script>
+</body>
+</html>
