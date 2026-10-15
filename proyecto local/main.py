@@ -1,33 +1,47 @@
 import os
-from flask import Flask, render_template
-from flask_socketio import SocketIO, emit
+from flask import Flask, render_template, jsonify, request
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'mi_local_secreto_123'
 
-# Configuramos SocketIO asegurando compatibilidad total con polling
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
-
+# Memoria de pedidos
 pedidos = []
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-@socketio.on('nuevo_pedido')
-def handle_nuevo_pedido(data):
+@app.route('/caja')
+def caja():
+    return render_template('caja.html')
+
+# Endpoint API para consultar pedidos desde la caja
+@app.route('/api/pedidos', methods=['GET'])
+def api_obtener_pedidos():
+    return jsonify(pedidos)
+
+# Endpoint API para recibir pedidos nuevos desde el menú del cliente
+@app.route('/api/pedidos', methods=['POST'])
+def api_nuevo_pedido():
+    data = request.get_json()
+    if not data:
+        return jsonify({'status': 'error', 'message': 'Sin datos'}), 400
+    
     nuevo_id = len(pedidos) + 1
     data['id'] = nuevo_id
     if 'estado' not in data or not data['estado']:
         data['estado'] = 'Pendiente'
-    
+        
     pedidos.append(data)
-    
-    emit('recibir_pedido', data, broadcast=True)
-    emit('actualizar_lista', pedidos, broadcast=True)
+    return jsonify({'status': 'ok', 'pedido': data})
 
-@socketio.on('cambiar_estado')
-def handle_cambiar_estado(data):
+# Endpoint API para actualizar el estado del pedido (Pendiente -> Preparando -> Listo)
+@app.route('/api/pedidos/estado', methods=['POST'])
+def api_cambiar_estado():
+    data = request.get_json()
+    if not data:
+        return jsonify({'status': 'error'}), 400
+        
     pedido_id = data.get('id')
     nuevo_estado = data.get('estado')
 
@@ -36,16 +50,8 @@ def handle_cambiar_estado(data):
             p['estado'] = nuevo_estado
             break
 
-    emit('actualizar_lista', pedidos, broadcast=True)
-
-@socketio.on('obtener_pedidos')
-def handle_obtener_pedidos():
-    emit('actualizar_lista', pedidos)
-
-@app.route('/caja')
-def caja():
-    return render_template('caja.html')
+    return jsonify({'status': 'ok'})
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
-    socketio.run(app, host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=port)
