@@ -3,249 +3,194 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Pedidos - Local & QR</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
+    <title>Munai - Menú QR</title>
     <style>
-        :root {
-            --primary: #ff4757;
-            --secondary: #2ed573;
-            --dark: #2f3542;
-            --light: #f1f2f6;
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 20px;
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background-color: var(--light); color: var(--dark); }
-        
-        .nav-tabs {
-            display: flex;
-            justify-content: center;
-            background: var(--dark);
-            padding: 10px;
-        }
-        .nav-tabs button {
-            background: transparent;
-            border: none;
-            color: white;
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-            font-weight: bold;
-            border-radius: 5px;
-            margin: 0 5px;
-            transition: 0.3s;
-        }
-        .nav-tabs button.active { background: var(--primary); }
-
-        .view-section { display: none; padding: 20px; max-width: 1200px; margin: 0 auto; }
-        .view-section.active { display: block; }
-
-        .menu-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-        }
-        .product-card {
-            background: white;
-            border-radius: 12px;
-            padding: 15px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        h1, h2 {
+            color: #333;
             text-align: center;
         }
-        .product-card h3 { color: var(--dark); margin-bottom: 10px; }
-        .product-card p { color: #747d8c; font-size: 14px; margin-bottom: 15px; }
-        .btn-add {
-            background: var(--primary);
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .card-producto {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .card-producto h3 { margin: 10px 0 5px 0; color: #333; }
+        .card-producto p { font-size: 14px; color: #666; margin-bottom: 15px; }
+        .btn-agregar {
+            background-color: #e74c3c;
             color: white;
             border: none;
             padding: 8px 15px;
-            border-radius: 8px;
+            border-radius: 5px;
             cursor: pointer;
             font-weight: bold;
         }
-        .btn-add:hover { opacity: 0.9; }
-
-        .cart-box {
+        .form-pedido {
             background: white;
-            margin-top: 30px;
-            padding: 20px;
-            border-radius: 12px;
+            padding: 25px;
+            border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        .form-control {
+        .form-pedido input {
             width: 100%;
             padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ced6e0;
-            border-radius: 6px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
         }
-        .btn-send {
-            background: var(--secondary);
+        .resumen {
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        .btn-enviar {
+            background-color: #2ecc71;
             color: white;
             border: none;
-            padding: 12px 20px;
+            padding: 12px;
             width: 100%;
-            border-radius: 8px;
+            border-radius: 5px;
             font-size: 16px;
             font-weight: bold;
             cursor: pointer;
         }
-
-        .kds-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
+        .navegacion {
+            text-align: center;
+            margin-bottom: 25px;
         }
-        .order-card {
-            background: white;
-            border-left: 6px solid #ffa502;
-            border-radius: 8px;
-            padding: 15px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        .order-card.en-preparacion { border-left-color: #1e90ff; }
-        .order-card.listo { border-left-color: var(--secondary); opacity: 0.7; }
-        .order-card h4 { margin-bottom: 8px; display: flex; justify-content: space-between; }
-        .order-card ul { list-style: none; margin: 10px 0; padding-left: 0; font-size: 14px; }
-        .order-actions { display: flex; gap: 5px; margin-top: 10px; }
-        .order-actions button {
-            flex: 1;
-            padding: 6px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
+        .navegacion a {
+            background: #34495e;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
             font-weight: bold;
         }
-        .btn-prep { background: #1e90ff; color: white; }
-        .btn-ready { background: var(--secondary); color: white; }
     </style>
 </head>
 <body>
 
-    <div class="nav-tabs">
-        <button onclick="switchView('cliente')" id="btn-cliente" class="active">📱 Menú QR (Cliente)</button>
-        <button onclick="switchView('cocina')" id="btn-cocina">🖥️ Pantalla Caja / Cocina</button>
-    </div>
+    <div class="container">
+        <div class="navegacion">
+            <a href="/caja" target="_blank">Ir a Pantalla de Caja / Cocina 📺</a>
+        </div>
 
-    <div id="view-cliente" class="view-section active">
-        <h2>Bienvenido a nuestro Emprendimiento Dulce ✨</h2>
-        <p>Arma tu antojo favorito y envíalo al instante.</p>
+        <h1>✨ Menú Digital - Munai Dulce & Salado ✨</h1>
 
         <div class="menu-grid">
-            <div class="product-card">
+            <div class="card-producto">
                 <h3>Frappé Especial</h3>
                 <p>Base helada con crema batida y jarabe.</p>
-                <button class="btn-add" onclick="agregarAlCarrito('Frappé Especial', 3.50)">Agregar ($3.50)</button>
+                <button class="btn-agregar" onclick="agregarAlCarrito('Frappé Especial', 3.50)">Agregar ($3.50)</button>
             </div>
-            <div class="product-card">
+            <div class="card-producto">
                 <h3>Smoothie de Fruta</h3>
                 <p>Refrescante smoothie natural.</p>
-                <button class="btn-add" onclick="agregarAlCarrito('Smoothie de Fruta', 3.00)">Agregar ($3.00)</button>
+                <button class="btn-agregar" onclick="agregarAlCarrito('Smoothie de Fruta', 3.00)">Agregar ($3.00)</button>
             </div>
-            <div class="product-card">
+            <div class="card-producto">
                 <h3>Waffle Tradicional</h3>
                 <p>Crujiente por fuera, suave por dentro.</p>
-                <button class="btn-add" onclick="agregarAlCarrito('Waffle Tradicional', 2.50)">Agregar ($2.50)</button>
+                <button class="btn-agregar" onclick="agregarAlCarrito('Waffle Tradicional', 2.50)">Agregar ($2.50)</button>
             </div>
-            <div class="product-card">
+            <div class="card-producto">
                 <h3>Mini Donas (x6)</h3>
                 <p>Bañadas en tu salsa favorita.</p>
-                <button class="btn-add" onclick="agregarAlCarrito('Mini Donas (x6)', 2.00)">Agregar ($2.00)</button>
+                <button class="btn-agregar" onclick="agregarAlCarrito('Mini Donas (x6)', 2.00)">Agregar ($2.00)</button>
             </div>
         </div>
 
-        <div class="cart-box">
-            <h3>Tu Pedido</h3>
-            <input type="text" id="cliente-nombre" class="form-control" placeholder="Tu Nombre">
-            <input type="text" id="cliente-mesa" class="form-control" placeholder="Número de Mesa o 'Para Llevar'">
-            <div id="resumen-pedido" style="margin: 15px 0; font-weight: bold;">Ningún producto seleccionado.</div>
-            <button class="btn-send" onclick="enviarPedido()">Confirmar y Enviar Pedido 🚀</button>
-        </div>
-    </div>
+        <div class="form-pedido">
+            <h2>Tu Pedido</h2>
+            <input type="text" id="nombre" placeholder="Tu Nombre">
+            <input type="text" id="mesa" placeholder="Número de Mesa o 'Para Llevar'">
+            
+            <div id="resumen-pedido" class="resumen">Ningún producto seleccionado.</div>
 
-    <div id="view-cocina" class="view-section">
-        <h2>Panel de Control - Comandas en Vivo 🖥️</h2>
-        <p>Los pedidos que hagan los clientes aparecerán aquí automáticamente.</p>
-        <button class="btn-add" style="margin-top: 15px; background: var(--dark);" onclick="abrirPedidoManual()">+ Tomar Pedido Presencial (Caja)</button>
-        
-        <div class="kds-container" id="lista-comandas">
-            <p style="color: #747d8c; margin-top: 20px;">No hay pedidos pendientes por ahora...</p>
+            <button type="button" class="btn-enviar" onclick="enviarPedido()">Confirmar y Enviar Pedido 🚀</button>
         </div>
     </div>
 
     <script>
-    <script>
-    let carritoItem = null;
+        let carritoItem = null;
 
-    function switchView(view) {
-        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.nav-tabs button').forEach(el => el.classList.remove('active'));
-        
-        const vistaEl = document.getElementById('view-' + view);
-        const btnEl = document.getElementById('btn-' + view);
-        if (vistaEl) vistaEl.classList.add('active');
-        if (btnEl) btnEl.classList.add('active');
-    }
-
-    function agregarAlCarrito(nombre, precio) {
-        carritoItem = { nombre, precio };
-        const resumen = document.getElementById('resumen-pedido');
-        if (resumen) {
-            resumen.innerHTML = `Seleccionado: <strong>${nombre}</strong> - $${precio.toFixed(2)}`;
-        }
-        alert(`¡${nombre} agregado al carrito! Rellena tu nombre y mesa para enviar.`);
-    }
-
-    function enviarPedido() {
-        const nombreInput = document.getElementById('nombre');
-        const mesaInput = document.getElementById('mesa');
-
-        if (!nombreInput || !mesaInput) {
-            alert('Error: No se encontraron los campos del formulario.');
-            return;
-        }
-
-        const nombre = nombreInput.value.trim();
-        const mesa = mesaInput.value.trim();
-
-        if (!nombre || !mesa) {
-            alert('Por favor ingresa tu nombre y número de mesa.');
-            return;
-        }
-
-        if (!carritoItem) {
-            alert('Selecciona al menos un producto del menú.');
-            return;
-        }
-
-        const datosPedido = {
-            cliente: nombre,
-            mesa: mesa,
-            productos: [carritoItem.nombre],
-            total: carritoItem.precio,
-            estado: 'Pendiente'
-        };
-
-        fetch('/api/pedidos', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(datosPedido)
-        })
-        .then(res => res.json())
-        .then(data => {
-            alert('¡Pedido enviado con éxito a la cocina! 🚀');
-            nombreInput.value = '';
-            mesaInput.value = '';
+        function agregarAlCarrito(nombre, precio) {
+            carritoItem = { nombre, precio };
             const resumen = document.getElementById('resumen-pedido');
             if (resumen) {
-                resumen.innerHTML = 'Ningún producto seleccionado.';
+                resumen.innerHTML = `Seleccionado: <strong>${nombre}</strong> - $${precio.toFixed(2)}`;
             }
-            carritoItem = null;
-        })
-        .catch(err => {
-            console.error(err);
-            alert('Hubo un error al conectar con el servidor. Intenta nuevamente.');
-        });
-    }
-</script>
+            alert(`¡${nombre} agregado! Rellena tu nombre y mesa para enviar.`);
+        }
+
+        function enviarPedido() {
+            const nombreInput = document.getElementById('nombre');
+            const mesaInput = document.getElementById('mesa');
+
+            if (!nombreInput || !mesaInput) {
+                alert('Por favor completa los campos.');
+                return;
+            }
+
+            const nombre = nombreInput.value.trim();
+            const mesa = mesaInput.value.trim();
+
+            if (!nombre || !mesa) {
+                alert('Por favor ingresa tu nombre y número de mesa.');
+                return;
+            }
+
+            if (!carritoItem) {
+                alert('Selecciona al menos un producto del menú.');
+                return;
+            }
+
+            const datosPedido = {
+                cliente: nombre,
+                mesa: mesa,
+                productos: [carritoItem.nombre],
+                total: carritoItem.precio,
+                estado: 'Pendiente'
+            };
+
+            fetch('/api/pedidos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(datosPedido)
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert('¡Pedido enviado con éxito a la cocina! 🚀');
+                nombreInput.value = '';
+                mesaInput.value = '';
+                const resumen = document.getElementById('resumen-pedido');
+                if (resumen) resumen.innerHTML = 'Ningún producto seleccionado.';
+                carritoItem = null;
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Error al conectar con el servidor. Intenta nuevamente.');
+            });
+        }
+    </script>
+</body>
+</html>
