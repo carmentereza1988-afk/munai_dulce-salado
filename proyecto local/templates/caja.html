@@ -34,31 +34,15 @@
         }
         .tarjeta-pedido.listo {
             border-left-color: #2ecc71;
-            opacity: 0.7;
         }
         .header-pedido {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 10px;
-        }
-        .id-pedido {
             font-weight: bold;
-            font-size: 1.2em;
+            margin-bottom: 10px;
         }
-        .estado {
-            padding: 4px 8px;
-            border-radius: 5px;
-            font-size: 0.85em;
-            font-weight: bold;
-            color: white;
-            background: #e74c3c;
-        }
-        .preparando .estado { background: #f39c12; }
-        .listo .estado { background: #2ecc71; }
         .detalles {
-            margin: 15px 0;
+            margin-bottom: 15px;
         }
         .botones {
             display: flex;
@@ -73,57 +57,62 @@
             font-weight: bold;
             color: white;
         }
-        .btn-preparar { background: #f39c12; }
-        .btn-listo { background: #2ecc71; }
+        .btn-preparar { background-color: #f39c12; }
+        .btn-listo { background-color: #2ecc71; }
     </style>
 </head>
 <body>
 
     <h1>🛒 Panel de Comandas - Munai Dulce & Salado</h1>
     
-    <div id="contenedor-pedidos" class="grid-pedidos">
-        <p id="sin-pedidos" style="text-align: center; grid-column: 1/-1; color: #777;">Esperando pedidos nuevos...</p>
+    <div id="grid-pedidos" class="grid-pedidos">
+        <p>Esperando pedidos nuevos...</p>
     </div>
 
     <script>
         const socket = io();
 
-        socket.on('recibir_pedido', function(data) {
-            const sinPedidos = document.getElementById('sin-pedidos');
-            if (sinPedidos) sinPedidos.remove();
+        // Pedir los pedidos existentes al conectar
+        socket.emit('obtener_pedidos');
 
-            const contenedor = document.getElementById('contenedor-pedidos');
-            
-            const tarjeta = document.createElement('div');
-            tarjeta.className = `tarjeta-pedido ${data.estado.toLowerCase()}`;
-            tarjeta.id = `pedido-${data.id}`;
+        // Escuchar cuando el servidor actualice la lista de pedidos
+        socket.on('actualizar_lista', function(pedidos) {
+            const contenedor = document.getElementById('grid-pedidos');
+            contenedor.innerHTML = ''; 
 
-            tarjeta.innerHTML = `
-                <div class="header-pedido">
-                    <span class="id-pedido">Pedido #${data.id}</span>
-                    <span class="estado">${data.estado}</span>
-                </div>
-                <div class="detalles">
-                    <p><strong>Cliente:</strong> ${data.cliente || 'Cliente'}</p>
-                    <p><strong>Productos:</strong> ${data.productos || 'Detalles del pedido'}</p>
-                    <p><strong>Total:</strong> $${data.total || '0.00'}</p>
-                </div>
-                <div class="botones">
-                    <button class="btn-preparar" onclick="cambiarEstado(${data.id}, 'Preparando')">En Preparación</button>
-                    <button class="btn-listo" onclick="cambiarEstado(${data.id}, 'Listo')">Listo</button>
-                </div>
-            `;
+            if (!pedidos || pedidos.length === 0) {
+                contenedor.innerHTML = '<p>Esperando pedidos nuevos...</p>';
+                return;
+            }
 
-            contenedor.prepend(tarjeta);
+            // Dibujamos cada pedido en la pantalla
+            pedidos.forEach(data => {
+                const tarjeta = document.createElement('div');
+                tarjeta.className = `tarjeta-pedido ${(data.estado || 'pendiente').toLowerCase()}`;
+                tarjeta.id = `pedido-${data.id}`;
+
+                tarjeta.innerHTML = `
+                    <div class="header-pedido">
+                        <span class="id-pedido">Pedido #${data.id}</span>
+                        <span class="estado">${data.estado}</span>
+                    </div>
+                    <div class="detalles">
+                        <p><strong>Cliente:</strong> ${data.cliente || 'Cliente'}</p>
+                        <p><strong>Productos:</strong> ${data.productos || 'Detalles del pedido'}</p>
+                        <p><strong>Total:</strong> $${data.total || '0.00'}</p>
+                    </div>
+                    <div class="botones">
+                        <button class="btn-preparar" onclick="cambiarEstado(${data.id}, 'Preparando')">En Preparación</button>
+                        <button class="btn-listo" onclick="cambiarEstado(${data.id}, 'Listo')">Listo</button>
+                    </div>
+                `;
+                contenedor.prepend(tarjeta);
+            });
         });
 
         function cambiarEstado(id, nuevoEstado) {
             socket.emit('cambiar_estado', { id: id, estado: nuevoEstado });
         }
-
-        socket.on('actualizar_lista', function(pedidos) {
-            location.reload();
-        });
     </script>
 </body>
 </html>
