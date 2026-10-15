@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Pedidos - Local & QR</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
+    <style>
+        :root {
+            --primary: #ff4757;
+            --secondary: #2ed573;
+            --dark: #2f3542;
+            --light: #f1f2f6;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--light); color: var(--dark); }
+        
+        .nav-tabs {
+            display: flex;
+            justify-content: center;
+            background: var(--dark);
+            padding: 10px;
+        }
+        .nav-tabs button {
+            background: transparent;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+            border-radius: 5px;
+            margin: 0 5px;
+            transition: 0.3s;
+        }
+        .nav-tabs button.active { background: var(--primary); }
+
+        .view-section { display: none; padding: 20px; max-width: 1200px; margin: 0 auto; }
+        .view-section.active { display: block; }
+
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .product-card {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .product-card h3 { color: var(--dark); margin-bottom: 10px; }
+        .product-card p { color: #747d8c; font-size: 14px; margin-bottom: 15px; }
+        .btn-add {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-add:hover { opacity: 0.9; }
+
+        .cart-box {
+            background: white;
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ced6e0;
+            border-radius: 6px;
+        }
+        .btn-send {
+            background: var(--secondary);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            width: 100%;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .kds-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .order-card {
+            background: white;
+            border-left: 6px solid #ffa502;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .order-card.en-preparacion { border-left-color: #1e90ff; }
+        .order-card.listo { border-left-color: var(--secondary); opacity: 0.7; }
+        .order-card h4 { margin-bottom: 8px; display: flex; justify-content: space-between; }
+        .order-card ul { list-style: none; margin: 10px 0; padding-left: 0; font-size: 14px; }
+        .order-actions { display: flex; gap: 5px; margin-top: 10px; }
+        .order-actions button {
+            flex: 1;
+            padding: 6px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .btn-prep { background: #1e90ff; color: white; }
+        .btn-ready { background: var(--secondary); color: white; }
+    </style>
+</head>
+<body>
+
+    <div class="nav-tabs">
+        <button onclick="switchView('cliente')" id="btn-cliente" class="active">📱 Menú QR (Cliente)</button>
+        <button onclick="switchView('cocina')" id="btn-cocina">🖥️ Pantalla Caja / Cocina</button>
+    </div>
+
+    <div id="view-cliente" class="view-section active">
+        <h2>Bienvenido a nuestro Emprendimiento Dulce ✨</h2>
+        <p>Arma tu antojo favorito y envíalo al instante.</p>
+
+        <div class="menu-grid">
+            <div class="product-card">
+                <h3>Frappé Especial</h3>
+                <p>Base helada con crema batida y jarabe.</p>
+                <button class="btn-add" onclick="agregarAlCarrito('Frappé Especial', 3.50)">Agregar ($3.50)</button>
+            </div>
+            <div class="product-card">
+                <h3>Smoothie de Fruta</h3>
+                <p>Refrescante smoothie natural.</p>
+                <button class="btn-add" onclick="agregarAlCarrito('Smoothie de Fruta', 3.00)">Agregar ($3.00)</button>
+            </div>
+            <div class="product-card">
+                <h3>Waffle Tradicional</h3>
+                <p>Crujiente por fuera, suave por dentro.</p>
+                <button class="btn-add" onclick="agregarAlCarrito('Waffle Tradicional', 2.50)">Agregar ($2.50)</button>
+            </div>
+            <div class="product-card">
+                <h3>Mini Donas (x6)</h3>
+                <p>Bañadas en tu salsa favorita.</p>
+                <button class="btn-add" onclick="agregarAlCarrito('Mini Donas (x6)', 2.00)">Agregar ($2.00)</button>
+            </div>
+        </div>
+
+        <div class="cart-box">
+            <h3>Tu Pedido</h3>
+            <input type="text" id="cliente-nombre" class="form-control" placeholder="Tu Nombre">
+            <input type="text" id="cliente-mesa" class="form-control" placeholder="Número de Mesa o 'Para Llevar'">
+            <div id="resumen-pedido" style="margin: 15px 0; font-weight: bold;">Ningún producto seleccionado.</div>
+            <button class="btn-send" onclick="enviarPedido()">Confirmar y Enviar Pedido 🚀</button>
+        </div>
+    </div>
+
+    <div id="view-cocina" class="view-section">
+        <h2>Panel de Control - Comandas en Vivo 🖥️</h2>
+        <p>Los pedidos que hagan los clientes aparecerán aquí automáticamente.</p>
+        <button class="btn-add" style="margin-top: 15px; background: var(--dark);" onclick="abrirPedidoManual()">+ Tomar Pedido Presencial (Caja)</button>
+        
+        <div class="kds-container" id="lista-comandas">
+            <p style="color: #747d8c; margin-top: 20px;">No hay pedidos pendientes por ahora...</p>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let carritoItem = null;
+
+        function switchView(view) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-tabs button').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById('view-' + view).classList.add('active');
+            document.getElementById('btn-' + view).classList.add('active');
+        }
+
+        function agregarAlCarrito(nombre, precio) {
+            carritoItem = { nombre, precio };
+            document.getElementById('resumen-pedido').innerHTML = `Seleccionado: ${nombre} - $${precio.toFixed(2)}`;
+            alert(`¡${nombre} agregado al carrito! Rellena tu nombre y mesa para enviar.`);
+        }
+
+        function enviarPedido() {
+            const nombre = document.getElementById('cliente-nombre').value;
+            const mesa = document.getElementById('cliente-mesa').value;
+
+            if(!nombre || !mesa) {
+                alert('Por favor ingresa tu nombre y número de mesa.');
+                return;
+            }
+            if(!carritoItem) {
+                alert('Selecciona al menos un producto del menú.');
+                return;
+            }
+
+            const datosPedido = {
+                cliente: nombre,
+                mesa: mesa,
+                productos: [carritoItem],
+                total: carritoItem.precio
+            };
+
+            socket.emit('nuevo_pedido', datosPedido);
+            alert('¡Pedido enviado con éxito a cocina!');
+            
+            document.getElementById('cliente-nombre').value = '';
+            document.getElementById('cliente-mesa').value = '';
+            carritoItem = null;
+            document.getElementById('resumen-pedido').innerHTML = 'Ningún producto seleccionado.';
+            switchView('cocina');
+        }
+
+        function abrirPedidoManual() {
+            const nombre = prompt("Nombre del cliente presencial:");
+            if(!nombre) return;
+            const mesa = prompt("Número de mesa o para llevar:");
+            if(!mesa) return;
+            const prod = prompt("¿Qué desea pedir? (Ej: Waffle, Frappé, Mini Donas):");
+            const precio = parseFloat(prompt("Precio total en $:", "3.00")) || 3.00;
+
+            const datosPedido = {
+                cliente: nombre + " (Presencial/Caja)",
+                mesa: mesa,
+                productos: [{ nombre: prod, precio: precio }],
+                total: precio
+            };
+
+            socket.emit('nuevo_pedido', datosPedido);
+        }
+
+        socket.on('recibir_pedido', function(pedido) {
+            renderizarComandas([pedido]);
+            let audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+            audio.play().catch(e => console.log("Audio bloqueado"));
+        });
+
+        socket.on('actualizar_lista', function(pedidos) {
+            renderizarComandas(pedidos);
+        });
+
+        function renderizarComandas(pedidos) {
+            const contenedor = document.getElementById('lista-comandas');
+            if(pedidos.length === 0) {
+                contenedor.innerHTML = '<p style="color: #747d8c; margin-top: 20px;">No hay pedidos pendientes...</p>';
+                return;
+            }
+            
+            contenedor.innerHTML = '';
+            pedidos.forEach(p => {
+                let claseEstado = '';
+                if(p.estado === 'En preparación') claseEstado = 'en-preparacion';
+                if(p.estado === 'Listo') claseEstado = 'listo';
+
+                let htmlProd = p.productos.map(item => `<li>• ${item.nombre} ($${item.precio.toFixed(2)})</li>`).join('');
+
+                let tarjeta = `
+                    <div class="order-card ${claseEstado}">
+                        <h4>Pedido #${p.id} <span>Mesa: ${p.mesa}</span></h4>
+                        <p><strong>Cliente:</strong> ${p.cliente}</p>
+                        <ul>${htmlProd}</ul>
+                        <p><strong>Total:</strong> $${p.total.toFixed(2)}</p>
+                        <p><strong>Estado:</strong> <em>${p.estado}</em></p>
+                        <div class="order-actions">
+                            <button class="btn-prep" onclick="cambiarEstado(${p.id}, 'En preparación')">Preparar</button>
+                            <button class="btn-ready" onclick="cambiarEstado(${p.id}, 'Listo')">Listo</button>
+                        </div>
+                    </div>
+                `;
+                contenedor.innerHTML += tarjeta;
+            });
+        }
+
+        function cambiarEstado(id, nuevoEstado) {
+            socket.emit('cambiar_estado', { id: id, estado: nuevoEstado });
+        }
+    </script>
+</body>
+</html>
