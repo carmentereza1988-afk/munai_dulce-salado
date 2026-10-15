@@ -195,8 +195,8 @@
         }
 
         function enviarPedido() {
-            const nombre = document.getElementById('cliente-nombre').value;
-            const mesa = document.getElementById('cliente-mesa').value;
+           const nombre = document.getElementById('nombre').value.trim();
+const mesa = document.getElementById('mesa').value.trim();
 
             if(!nombre || !mesa) {
                 alert('Por favor ingresa tu nombre y número de mesa.');
