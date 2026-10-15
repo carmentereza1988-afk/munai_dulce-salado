@@ -175,128 +175,77 @@
     </div>
 
     <script>
-      const socket = io({
-    transports: ['polling']
-});
-        let carritoItem = null;
+    <script>
+    let carritoItem = null;
 
-        function switchView(view) {
-            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.nav-tabs button').forEach(el => el.classList.remove('active'));
-            
-            document.getElementById('view-' + view).classList.add('active');
-            document.getElementById('btn-' + view).classList.add('active');
+    function switchView(view) {
+        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.nav-tabs button').forEach(el => el.classList.remove('active'));
+        
+        const vistaEl = document.getElementById('view-' + view);
+        const btnEl = document.getElementById('btn-' + view);
+        if (vistaEl) vistaEl.classList.add('active');
+        if (btnEl) btnEl.classList.add('active');
+    }
+
+    function agregarAlCarrito(nombre, precio) {
+        carritoItem = { nombre, precio };
+        const resumen = document.getElementById('resumen-pedido');
+        if (resumen) {
+            resumen.innerHTML = `Seleccionado: <strong>${nombre}</strong> - $${precio.toFixed(2)}`;
+        }
+        alert(`¡${nombre} agregado al carrito! Rellena tu nombre y mesa para enviar.`);
+    }
+
+    function enviarPedido() {
+        const nombreInput = document.getElementById('nombre');
+        const mesaInput = document.getElementById('mesa');
+
+        if (!nombreInput || !mesaInput) {
+            alert('Error: No se encontraron los campos del formulario.');
+            return;
         }
 
-        function agregarAlCarrito(nombre, precio) {
-            carritoItem = { nombre, precio };
-            document.getElementById('resumen-pedido').innerHTML = `Seleccionado: ${nombre} - $${precio.toFixed(2)}`;
-            alert(`¡${nombre} agregado al carrito! Rellena tu nombre y mesa para enviar.`);
+        const nombre = nombreInput.value.trim();
+        const mesa = mesaInput.value.trim();
+
+        if (!nombre || !mesa) {
+            alert('Por favor ingresa tu nombre y número de mesa.');
+            return;
         }
 
-        function enviarPedido() {
-           const nombre = document.getElementById('nombre').value.trim();
-const mesa = document.getElementById('mesa').value.trim();
+        if (!carritoItem) {
+            alert('Selecciona al menos un producto del menú.');
+            return;
+        }
 
-            if(!nombre || !mesa) {
-                alert('Por favor ingresa tu nombre y número de mesa.');
-                return;
+        const datosPedido = {
+            cliente: nombre,
+            mesa: mesa,
+            productos: [carritoItem.nombre],
+            total: carritoItem.precio,
+            estado: 'Pendiente'
+        };
+
+        fetch('/api/pedidos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(datosPedido)
+        })
+        .then(res => res.json())
+        .then(data => {
+            alert('¡Pedido enviado con éxito a la cocina! 🚀');
+            nombreInput.value = '';
+            mesaInput.value = '';
+            const resumen = document.getElementById('resumen-pedido');
+            if (resumen) {
+                resumen.innerHTML = 'Ningún producto seleccionado.';
             }
-            if(!carritoItem) {
-                alert('Selecciona al menos un producto del menú.');
-                return;
-            }
-
-            const datosPedido = {
-                cliente: nombre,
-                mesa: mesa,
-                productos: [carritoItem],
-                total: carritoItem.precio
-            };
-
-            socket.emit('nuevo_pedido', datosPedido);
-            alert('¡Pedido enviado con éxito a cocina!');
-            
-            document.getElementById('cliente-nombre').value = '';
-            document.getElementById('cliente-mesa').value = '';
             carritoItem = null;
-            document.getElementById('resumen-pedido').innerHTML = 'Ningún producto seleccionado.';
-            switchView('cocina');
-        }
-
-        function abrirPedidoManual() {
-            const nombre = prompt("Nombre del cliente presencial:");
-            if(!nombre) return;
-            const mesa = prompt("Número de mesa o para llevar:");
-            if(!mesa) return;
-            const prod = prompt("¿Qué desea pedir? (Ej: Waffle, Frappé, Mini Donas):");
-            const precio = parseFloat(prompt("Precio total en $:", "3.00")) || 3.00;
-
-            const datosPedido = {
-    cliente: nombre + " (Presencial/Caja)",
-    mesa: mesa,
-    productos: [{ nombre: prod, precio: precio }],
-    total: precio,
-    estado: 'Pendiente'
-};
-
-fetch('/api/pedidos', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(datosPedido)
-})
-.then(res => res.json())
-.then(res => {
-    alert("¡Pedido enviado con éxito a cocina!");
-})
-.catch(err => alert("Error al enviar el pedido. Intenta nuevamente."));
-        }
-
-        socket.on('recibir_pedido', function(pedido) {
-            renderizarComandas([pedido]);
-            let audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-            audio.play().catch(e => console.log("Audio bloqueado"));
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Hubo un error al conectar con el servidor. Intenta nuevamente.');
         });
-
-        socket.on('actualizar_lista', function(pedidos) {
-            renderizarComandas(pedidos);
-        });
-
-        function renderizarComandas(pedidos) {
-            const contenedor = document.getElementById('lista-comandas');
-            if(pedidos.length === 0) {
-                contenedor.innerHTML = '<p style="color: #747d8c; margin-top: 20px;">No hay pedidos pendientes...</p>';
-                return;
-            }
-            
-            contenedor.innerHTML = '';
-            pedidos.forEach(p => {
-                let claseEstado = '';
-                if(p.estado === 'En preparación') claseEstado = 'en-preparacion';
-                if(p.estado === 'Listo') claseEstado = 'listo';
-
-                let htmlProd = p.productos.map(item => `<li>• ${item.nombre} ($${item.precio.toFixed(2)})</li>`).join('');
-
-                let tarjeta = `
-                    <div class="order-card ${claseEstado}">
-                        <h4>Pedido #${p.id} <span>Mesa: ${p.mesa}</span></h4>
-                        <p><strong>Cliente:</strong> ${p.cliente}</p>
-                        <ul>${htmlProd}</ul>
-                        <p><strong>Total:</strong> $${p.total.toFixed(2)}</p>
-                        <p><strong>Estado:</strong> <em>${p.estado}</em></p>
-                        <div class="order-actions">
-                            <button class="btn-prep" onclick="cambiarEstado(${p.id}, 'En preparación')">Preparar</button>
-                            <button class="btn-ready" onclick="cambiarEstado(${p.id}, 'Listo')">Listo</button>
-                        </div>
-                    </div>
-                `;
-                contenedor.innerHTML += tarjeta;
-            });
-        }
-
-        function cambiarEstado(id, nuevoEstado) {
-            socket.emit('cambiar_estado', { id: id, estado: nuevoEstado });
-        }
-    </script>
-</body>
-</html>
+    }
+</script>
