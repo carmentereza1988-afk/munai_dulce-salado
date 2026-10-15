@@ -31,7 +31,9 @@ def handle_cambiar_estado(data):
             break
 
     emit('actualizar_lista', pedidos, broadcast=True)
-
+@app.route('/caja')
+def caja():
+    return render_template('caja.html')
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     print(f"🚀 Servidor corriendo en puerto {port}")
